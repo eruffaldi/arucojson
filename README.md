@@ -13,7 +13,7 @@ It can also export or visualize the markers overlaid
 
 Syntax:
 
- aruco2json calibrationfile size imagefile alreadyundist [-|outfilename]
+    aruco2json calibrationfile size imagefile alreadyundist [-|outfilename]
 
 Example Output:
 
@@ -163,7 +163,7 @@ Simple tool for overlaying generic marker information over image. Command contai
 
 Syntax:
 
- overlay calibrationfile.yaml command.yaml imagefile dist [outfile|-]
+  overlay calibrationfile.yaml command.yaml imagefile dist [outfile|-]
 
 Example:
 

@@ -1,8 +1,8 @@
 #include <Eigen/Core>
 #include <fstream>
 #include <json/json.h>
-#include <aruco/aruco.h>
-#include <aruco/cvdrawingutils.h>
+#include <aruco.h>
+#include <cvdrawingutils.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv/cv.h>

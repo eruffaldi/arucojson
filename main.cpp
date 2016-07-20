@@ -2,8 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <json/json.h>
-#include <aruco/aruco.h>
-#include <aruco/cvdrawingutils.h>
+#include <aruco.h>
+#include <cvdrawingutils.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv/cv.h>
@@ -248,6 +248,9 @@ int main(int argc, char const *argv[])
         jmarker["Tvec"][0] = Tvec.at<float>(0,0);
         jmarker["Tvec"][1] = Tvec.at<float>(1,0);
         jmarker["Tvec"][2] = Tvec.at<float>(2,0);
+        jmarker["Rvec"][0] = Rvec.at<float>(0,0);
+        jmarker["Rvec"][1] = Rvec.at<float>(1,0);
+        jmarker["Rvec"][2] = Rvec.at<float>(2,0);
         jmarker["pose"] = mat2json(marker_pose);
         jmarker["glmodelview"] = vec2json(mat,16);
         for(int q = 0; q < marker.size(); q++)
@@ -261,6 +264,7 @@ int main(int argc, char const *argv[])
         jmarkers.append(jmarker);
         std::cout <<" mid:" << marker.id << " error:" << e << " area:" << marker.getArea() << std::endl;
 
+
         //markerpose
         //markerid
         //markersize
@@ -269,6 +273,7 @@ int main(int argc, char const *argv[])
         recreate << ((std::ostringstream() << "markersize" << found  ).str().c_str()) << marker_size;
         recreate << ((std::ostringstream() << "markerpose" << found  ).str().c_str()) << marker_posecv;
         recreate << ((std::ostringstream() << "mode" << found ).str().c_str()) << 3;
+        recreate << ((std::ostringstream() << "corners" << found ).str().c_str()) << marker;
     }
 
     Json::Value jroot;
