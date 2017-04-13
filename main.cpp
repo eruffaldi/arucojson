@@ -1,9 +1,9 @@
 #include <Eigen/Core>
 #include <fstream>
 #include <sstream>
-#include <json/json.h>
-#include <aruco.h>
-#include <cvdrawingutils.h>
+#include "json/json.h"
+#include <aruco/aruco.h>
+#include <aruco/cvdrawingutils.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv/cv.h>
@@ -168,136 +168,164 @@ int main(int argc, char const *argv[])
     std::cout << "dist:"<<dist_coeffs << std::endl;
     std::cout << "marker_size:"<<marker_size << std::endl;
 
-    cv::Mat frame = cv::imread(argv[3]);
-    if(frame.rows == 0)
+    cv::VideoCapture cap(argv[3]);
+    if(!cap.isOpened()) 
     {
-    	std::cerr << "wrong image file" << std::endl;
-    	return -3;
+        std::cerr << "wrong image/video file " << argv[3] << std::endl;
+        return -3;
     }
 
-    aruco::CameraParameters cp(camera_matrix,dist_coeffs, cv::Size(frame.cols,frame.rows));
 
     std::vector<aruco::Marker> markers;
     aruco::MarkerDetector marker_detector;
     marker_detector.setMinMaxSize(0.01,0.1);
-    marker_detector.detect(
-    	frame, 
-    	markers, 
-    	cp,
-        marker_size, 
-        y_axis_perpendicular);
-    double pmat[16];
-    cp.glGetProjectionMatrix(cp.CamSize,cp.CamSize,pmat,0.1,100,false);
 
-    std::string xin = argv[3];
-    cv::FileStorage recreate(xin+".yml", cv::FileStorage::WRITE);
-
-    Json::Value jmarkers(Json::arrayValue);
-    int found = 0;
-	for (auto marker : markers)
-    {
-        if (!marker.isValid())
-            continue;
-        found++;
-        cv::Mat Rvec,Tvec;
-        auto e = calculateExtrinsics(marker,marker_size,camera_matrix,dist_coeffs,y_axis_perpendicular,Rvec,Tvec);
-
-        marker.draw(frame, cv::Scalar(0,0,255), 2);
-        aruco::CvDrawingUtils::draw3dAxis(frame, marker, cp);
-
-
-
-        Eigen::Matrix4d marker_pose = Eigen::Matrix4d::Identity();
-        marker_pose.block<3, 1>(0, 3) = Eigen::Vector3d(Tvec.at<float>(0),
-                                              Tvec.at<float>(1),
-                                              Tvec.at<float>(2));
-        cv::Mat marker_rot;
-        cv::Rodrigues(Rvec, marker_rot);
-        marker_pose(0, 0) = marker_rot.at<float>(0, 0);
-        marker_pose(0, 1) = marker_rot.at<float>(0, 1);
-        marker_pose(0, 2) = marker_rot.at<float>(0, 2);
-        marker_pose(1, 0) = marker_rot.at<float>(1, 0);
-        marker_pose(1, 1) = marker_rot.at<float>(1, 1);
-        marker_pose(1, 2) = marker_rot.at<float>(1, 2);
-        marker_pose(2, 0) = marker_rot.at<float>(2, 0);
-        marker_pose(2, 1) = marker_rot.at<float>(2, 1);
-        marker_pose(2, 2) = marker_rot.at<float>(2, 2);
-
-        //void eigen2cv(const Eigen::Matrix<_Tp, _rows, _cols, _options, _maxRows, _maxCols>& src, Mat& dst)
-        cv::Mat marker_posecv(4,4,CV_32F);
-        //marker_rot.copyTo(marker_posecv(cv::Rect(0,0,3,3)));
-        //Tvec.copyTo(marker_posecv(cv::Rect(0,3,3,1)));
-        cv::eigen2cv(marker_pose,marker_posecv);
-
-        //cv::Mat cvT(4,4,CV_32FC1); 
-        //Eigen::Map<Matrix4f> eigenT( cvT.data() ); 
-
-        std::cout << "marker mid:" << marker.id << " error:" << e << "\n\tTvec:" << Tvec << "\n\tRvec:" << Rvec << std::endl;
-
-	    double mat[16];
-        marker.glGetModelViewMatrix(mat);
-        cv::Point2f center = marker.getCenter();
-
-        Json::Value jmarker;
-        jmarker["id"] = marker.id;
-        jmarker["center"][0] = center.x;
-        jmarker["center"][1] = center.y;
-        jmarker["error"] = e;
-        jmarker["areapx"] = marker.getArea();
-        jmarker["areau"] = marker.getArea()/(cp.CamSize.width*cp.CamSize.height);
-        jmarker["Tvec"][0] = Tvec.at<float>(0,0);
-        jmarker["Tvec"][1] = Tvec.at<float>(1,0);
-        jmarker["Tvec"][2] = Tvec.at<float>(2,0);
-        jmarker["Rvec"][0] = Rvec.at<float>(0,0);
-        jmarker["Rvec"][1] = Rvec.at<float>(1,0);
-        jmarker["Rvec"][2] = Rvec.at<float>(2,0);
-        jmarker["pose"] = mat2json(marker_pose);
-        jmarker["glmodelview"] = vec2json(mat,16);
-        for(int q = 0; q < marker.size(); q++)
-        {
-            jmarker["points"][q][0] = marker[q].x;
-            jmarker["points"][q][1] = marker[q].y;
-        }
-        jmarker["points"][(int)marker.size()][0] = center.x;
-        jmarker["points"][(int)marker.size()][1] = center.y;
-        // and then the center
-        jmarkers.append(jmarker);
-        std::cout <<" mid:" << marker.id << " error:" << e << " area:" << marker.getArea() << std::endl;
-
-
-        //markerpose
-        //markerid
-        //markersize
-        //mode
-        recreate << ((std::ostringstream() << "markerid" << found ).str().c_str()) << marker.id;
-        recreate << ((std::ostringstream() << "markersize" << found  ).str().c_str()) << marker_size;
-        recreate << ((std::ostringstream() << "markerpose" << found  ).str().c_str()) << marker_posecv;
-        recreate << ((std::ostringstream() << "mode" << found ).str().c_str()) << 3;
-        recreate << ((std::ostringstream() << "corners" << found ).str().c_str()) << marker;
-    }
-
-    Json::Value jroot;
-    jroot["markers"] = jmarkers;
-    jroot["glprojection"] = vec2json(pmat,16);
-    jroot["K"] = mat2json(camera_matrix);
-    jroot["dist"] = mat2json(dist_coeffs);
-    jroot["markersize"] = marker_size;
-    jroot["yaxisup"] = y_axis_perpendicular;
-    jroot["imagesize"][0] = cp.CamSize.width;
-    jroot["imagesize"][1] = cp.CamSize.height;
+    cv::Mat frame;
+    bool singleframe = cap.get(CV_CAP_PROP_FRAME_COUNT) == 1;
 
     std::ofstream onf((std::string(argv[3]) +".json").c_str());
-    onf << Json::FastWriter().write(jroot);
-    if(argc > 5 && found)
+
+    for(;;)
     {
-        if(strcmp(argv[5],"-") == 0)
+        cap >> frame;
+        if(frame.rows == 0)
         {
-            cv::imshow("ciao",frame);
-            cv::waitKey(0);
+            break;
         }
-        else
+        aruco::CameraParameters cp(camera_matrix,dist_coeffs, cv::Size(frame.cols,frame.rows));
+
+        marker_detector.detect(
+        	frame, 
+        	markers, 
+        	cp,
+            marker_size, 
+            y_axis_perpendicular);
+        double pmat[16];
+        cp.glGetProjectionMatrix(cp.CamSize,cp.CamSize,pmat,0.1,100,false);
+
+        // TODO YML output for frames
+        std::string xin = argv[3];
+        std::unique_ptr<cv::FileStorage> recreate;
+        if(singleframe)
+            recreate = std::unique_ptr<cv::FileStorage>(new cv::FileStorage(xin+".yml", cv::FileStorage::WRITE));
+
+        Json::Value jmarkers(Json::arrayValue);
+        int found = 0;
+
+    	for (auto marker : markers)
         {
-            cv::imwrite(argv[5],frame);            
+            if (!marker.isValid())
+            {
+                continue;
+            }
+            found++;
+            cv::Mat Rvec,Tvec;
+            auto e = calculateExtrinsics(marker,marker_size,camera_matrix,dist_coeffs,y_axis_perpendicular,Rvec,Tvec);
+
+            marker.draw(frame, cv::Scalar(0,0,255), 2);
+            aruco::CvDrawingUtils::draw3dAxis(frame, marker, cp);
+
+
+
+            Eigen::Matrix4d marker_pose = Eigen::Matrix4d::Identity();
+            marker_pose.block<3, 1>(0, 3) = Eigen::Vector3d(Tvec.at<float>(0),
+                                                  Tvec.at<float>(1),
+                                                  Tvec.at<float>(2));
+            cv::Mat marker_rot;
+            cv::Rodrigues(Rvec, marker_rot);
+            marker_pose(0, 0) = marker_rot.at<float>(0, 0);
+            marker_pose(0, 1) = marker_rot.at<float>(0, 1);
+            marker_pose(0, 2) = marker_rot.at<float>(0, 2);
+            marker_pose(1, 0) = marker_rot.at<float>(1, 0);
+            marker_pose(1, 1) = marker_rot.at<float>(1, 1);
+            marker_pose(1, 2) = marker_rot.at<float>(1, 2);
+            marker_pose(2, 0) = marker_rot.at<float>(2, 0);
+            marker_pose(2, 1) = marker_rot.at<float>(2, 1);
+            marker_pose(2, 2) = marker_rot.at<float>(2, 2);
+
+            //void eigen2cv(const Eigen::Matrix<_Tp, _rows, _cols, _options, _maxRows, _maxCols>& src, Mat& dst)
+            cv::Mat marker_posecv(4,4,CV_32F);
+            //marker_rot.copyTo(marker_posecv(cv::Rect(0,0,3,3)));
+            //Tvec.copyTo(marker_posecv(cv::Rect(0,3,3,1)));
+            cv::eigen2cv(marker_pose,marker_posecv);
+
+            //cv::Mat cvT(4,4,CV_32FC1); 
+            //Eigen::Map<Matrix4f> eigenT( cvT.data() ); 
+
+            std::cout << "marker mid:" << marker.id << " error:" << e << "\n\tTvec:" << Tvec << "\n\tRvec:" << Rvec << std::endl;
+
+    	    double mat[16];
+            marker.glGetModelViewMatrix(mat);
+            cv::Point2f center = marker.getCenter();
+
+            Json::Value jmarker;
+            jmarker["id"] = marker.id;
+            jmarker["center"][0] = center.x;
+            jmarker["center"][1] = center.y;
+            jmarker["error"] = e;
+            jmarker["areapx"] = marker.getArea();
+            jmarker["areau"] = marker.getArea()/(cp.CamSize.width*cp.CamSize.height);
+            jmarker["Tvec"][0] = Tvec.at<float>(0,0);
+            jmarker["Tvec"][1] = Tvec.at<float>(1,0);
+            jmarker["Tvec"][2] = Tvec.at<float>(2,0);
+            jmarker["Rvec"][0] = Rvec.at<float>(0,0);
+            jmarker["Rvec"][1] = Rvec.at<float>(1,0);
+            jmarker["Rvec"][2] = Rvec.at<float>(2,0);
+            jmarker["pose"] = mat2json(marker_pose);
+            jmarker["glmodelview"] = vec2json(mat,16);
+            for(int q = 0; q < marker.size(); q++)
+            {
+                jmarker["points"][q][0] = marker[q].x;
+                jmarker["points"][q][1] = marker[q].y;
+            }
+            jmarker["points"][(int)marker.size()][0] = center.x;
+            jmarker["points"][(int)marker.size()][1] = center.y;
+            // and then the center
+            jmarkers.append(jmarker);
+            std::cout <<" mid:" << marker.id << " error:" << e << " area:" << marker.getArea() << std::endl;
+
+
+            //markerpose
+            //markerid
+            //markersize
+            //mode
+            if(recreate)
+            {
+                *recreate << ((std::ostringstream() << "markerid" << found ).str().c_str()) << marker.id;
+                *recreate << ((std::ostringstream() << "markersize" << found  ).str().c_str()) << marker_size;
+                *recreate << ((std::ostringstream() << "markerpose" << found  ).str().c_str()) << marker_posecv;
+                *recreate << ((std::ostringstream() << "mode" << found ).str().c_str()) << 3;
+                *recreate << ((std::ostringstream() << "corners" << found ).str().c_str()) << marker;
+            }
+        }
+
+        Json::Value jroot;
+        jroot["markers"] = jmarkers;
+        jroot["glprojection"] = vec2json(pmat,16);
+        jroot["K"] = mat2json(camera_matrix);
+        jroot["dist"] = mat2json(dist_coeffs);
+        jroot["markersize"] = marker_size;
+        jroot["yaxisup"] = y_axis_perpendicular;
+        jroot["imagesize"][0] = cp.CamSize.width;
+        jroot["imagesize"][1] = cp.CamSize.height;
+
+        // multiple frames == multiple JSON messages, one per line
+        onf << Json::FastWriter().write(jroot);
+        
+        if(argc > 5 && found)
+        {
+            if(strcmp(argv[5],"-") == 0)
+            {
+                cv::imshow("ciao",frame);
+                cv::waitKey(1);
+            }
+            else
+            {
+                // Multiframe => overwrite
+                if(!singleframe)
+                    std::cout << "Warning: overwriting output " << argv[5] << std::endl;
+                cv::imwrite(argv[5],frame);            
+            }
         }
     }
     return 0;

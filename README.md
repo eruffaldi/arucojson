@@ -11,9 +11,18 @@ It can also export or visualize the markers overlaid
 - camera information
 - per-marker data comprising the area of the marker visible in pixels, corners, OpenGL Modelview matrix
 
+YAML output only for static images (or 1 frame videos)
+
+
+
 Syntax:
 
-    aruco2json calibrationfile size imagefile alreadyundist [-|outfilename]
+    aruco2json calibrationfile size videofile alreadyundist [-|outfilename]
+
+Example:
+
+  ./aruco2json k2.yml 0.05 /Volumes/BigData/PELARS/sessions/S1602/kinect.mp4 1
+
 
 Example Output:
 
