@@ -126,6 +126,11 @@ Json::Value mat2json(const Eigen::Matrix4d & m)
     return r;
 }
 
+void help(){
+        std::cerr << "Arguments: [-xy] calibrationfile size imagefile alreadyundist [-|outfilename]\n\t-x mirror image along x\n\t-y mirror image along y\n\t-xy mirror image along xy\n"";
+        exit(1);
+}
+
 
 int main(int argc, char const *argv[])
 {
@@ -133,12 +138,38 @@ int main(int argc, char const *argv[])
 	// second is file
 	// output is array of markers	
 	bool y_axis_perpendicular = false;
+    int mirror = 0;
+    bool show = false;
+
+    if(argc == 1)
+        help();
+
+    for(; argv[1][0] == '-'; argc--, argv++)
+    {
+        if(strcmp(argv[1],"-xy") == 0)
+            mirror = 3;
+        ele if(strcmp(argv[1],"-x") == 0)
+            mirror |= 1;
+        else if(strcmp(argv[1],"-y") == 0)
+            mirror |= 2;
+        else if(strcmp(argv[1],"-s") == 0)
+            show = true;
+    }
 
 	if(argc < 5)
 	{
-		std::cerr << "Expected: calibrationfile size imagefile alreadyundist [-|outfilename]\n";
+        help();
 		return -1;
 	}
+
+    std::string saveframe;
+    if(argc > 5)
+    {
+        if(strcmp(argv[5],"-") == 0)
+            show = true;
+        else
+            saveframe = argv[5];
+    }
 
 	cv::Mat camera_matrix,dist_coeffs;
 	cv::FileStorage camera_calibration_file(argv[1], cv::FileStorage::READ);
@@ -192,6 +223,12 @@ int main(int argc, char const *argv[])
         {
             break;
         }
+        if(mirror != 0)
+        {
+            cv::Mat dst;
+            cv::flip(frame,dst,mirror == 1 ? 0 : mirror == 2 ? 1 : -1);
+            frame = dst; // ref
+        }
         aruco::CameraParameters cp(camera_matrix,dist_coeffs, cv::Size(frame.cols,frame.rows));
 
         marker_detector.detect(
@@ -211,6 +248,8 @@ int main(int argc, char const *argv[])
 
         Json::Value jmarkers(Json::arrayValue);
         int found = 0;
+
+        std::cout << "frame\n";
 
     	for (auto marker : markers)
         {
@@ -252,7 +291,7 @@ int main(int argc, char const *argv[])
             //cv::Mat cvT(4,4,CV_32FC1); 
             //Eigen::Map<Matrix4f> eigenT( cvT.data() ); 
 
-            std::cout << "marker mid:" << marker.id << " error:" << e << "\n\tTvec:" << Tvec << "\n\tRvec:" << Rvec << std::endl;
+            //std::cout << "marker mid:" << marker.id << " error:" << e << "\n\tTvec:" << Tvec << "\n\tRvec:" << Rvec << std::endl;
 
     	    double mat[16];
             marker.glGetModelViewMatrix(mat);
@@ -312,20 +351,17 @@ int main(int argc, char const *argv[])
         // multiple frames == multiple JSON messages, one per line
         onf << Json::FastWriter().write(jroot);
         
-        if(argc > 5 && found)
+        if(show && found)
         {
-            if(strcmp(argv[5],"-") == 0)
-            {
-                cv::imshow("ciao",frame);
-                cv::waitKey(1);
-            }
-            else
-            {
-                // Multiframe => overwrite
-                if(!singleframe)
-                    std::cout << "Warning: overwriting output " << argv[5] << std::endl;
-                cv::imwrite(argv[5],frame);            
-            }
+            cv::imshow("ciao",frame);
+            cv::waitKey(1);
+        }
+        if(!saveframe.empty() && found)
+        {
+            // Multiframe => overwrite
+            if(!singleframe)
+                std::cout << "Warning: overwriting output " << saveframe << std::endl;
+            cv::imwrite(saveframe.c_str(),frame);            
         }
     }
     return 0;
