@@ -127,7 +127,7 @@ Json::Value mat2json(const Eigen::Matrix4d & m)
 }
 
 void help(){
-        std::cerr << "Arguments: [-xy] calibrationfile size imagefile alreadyundist [-|outfilename]\n\t-x mirror image along x\n\t-y mirror image along y\n\t-xy mirror image along xy\n"";
+        std::cerr << "Arguments: [-xy] calibrationfile size imagefile alreadyundist [-|outfilename]\n\t-x mirror image along x\n\t-y mirror image along y\n\t-xy mirror image along xy\n";
         exit(1);
 }
 
@@ -148,7 +148,7 @@ int main(int argc, char const *argv[])
     {
         if(strcmp(argv[1],"-xy") == 0)
             mirror = 3;
-        ele if(strcmp(argv[1],"-x") == 0)
+        else if(strcmp(argv[1],"-x") == 0)
             mirror |= 1;
         else if(strcmp(argv[1],"-y") == 0)
             mirror |= 2;
