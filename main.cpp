@@ -349,7 +349,7 @@ int main(int argc, char const *argv[])
         jroot["imagesize"][1] = cp.CamSize.height;
 
         // multiple frames == multiple JSON messages, one per line
-        onf << Json::FastWriter().write(jroot);
+        onf << Json::StyledWriter().write(jroot);
         
         if(show && found)
         {
