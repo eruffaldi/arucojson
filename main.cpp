@@ -10,6 +10,7 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/eigen.hpp>
+#include <memory>
 
 void rotateXAxis(cv::Mat &rotation) {
     cv::Mat R(3, 3, CV_32F);
@@ -328,14 +329,14 @@ int main(int argc, char const *argv[])
             //markerid
             //markersize
             //mode
-            if(recreate)
+           /* if(recreate)
             {
                 *recreate << ((std::ostringstream() << "markerid" << found ).str().c_str()) << marker.id;
                 *recreate << ((std::ostringstream() << "markersize" << found  ).str().c_str()) << marker_size;
                 *recreate << ((std::ostringstream() << "markerpose" << found  ).str().c_str()) << marker_posecv;
                 *recreate << ((std::ostringstream() << "mode" << found ).str().c_str()) << 3;
                 *recreate << ((std::ostringstream() << "corners" << found ).str().c_str()) << marker;
-            }
+            }*/
         }
 
         Json::Value jroot;
